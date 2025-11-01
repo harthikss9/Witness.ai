@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudWatch Cross-Account Lambda Function - TARGET Account Setup'
+
+Parameters:
+  SourceAccountId:
+    Type: String
+    Description: AWS Account ID where Lambda function runs
+    AllowedPattern: '[0-9]{12}'
+    ConstraintDescription: Must be a valid 12-digit AWS account ID
+  
+  SourceLambdaRoleName:
+    Type: String
+    Description: Name of the Lambda execution role in source account
+    Default: CloudWatchLambdaExecutionRole
+
+Resources:
+  # IAM Role that allows source account Lambda to access CloudWatch
+  CrossAccountCloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CrossAccountCloudWatchRole
+      Description: Allows source account Lambda to read CloudWatch data
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${SourceAccountId}:role/${SourceLambdaRoleName}'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DescribeAlarmsForMetric
+                  - cloudwatch:GetMetricWidgetImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvents
+                  - logs:StartQuery
+                  - logs:GetQueryResults
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeTags
+                  - rds:DescribeDBInstances
+                  - lambda:ListFunctions
+                  - elasticloadbalancing:DescribeLoadBalancers
+                Resource: '*'
+
+Outputs:
+  CrossAccountRoleArn:
+    Description: ARN of the cross-account role (use this in source account Lambda)
+    Value: !GetAtt CrossAccountCloudWatchRole.Arn
+    Export:
+      Name: CrossAccountCloudWatchRoleArn
+  
+  CrossAccountRoleName:
+    Description: Name of the cross-account role
+    Value: !Ref CrossAccountCloudWatchRole
+
+

@@ -1,0 +1,161 @@
+========================================
+TARGET ACCOUNT SETUP INSTRUCTIONS
+========================================
+
+Target Account ID: 993260645905
+Source Account ID: 190460190639
+Source Region: us-west-1
+Target Region: us-east-1
+
+OVERVIEW
+--------
+After the Lambda function is deployed in the source account (190460190639),
+you need to create a role in the target account (993260645905) that allows
+the Lambda function to access CloudWatch data.
+
+OPTION 1: CloudFormation (Recommended)
+---------------------------------------
+
+1. Obtain the CloudFormation template file:
+   cloudformation_target_account.yaml
+
+2. Deploy the stack in account 993260645905:
+
+aws cloudformation create-stack \
+  --stack-name cloudwatch-cross-account-target \
+  --template-body file://cloudformation_target_account.yaml \
+  --parameters \
+    ParameterKey=SourceAccountId,ParameterValue=190460190639 \
+    ParameterKey=SourceLambdaRoleName,ParameterValue=CloudWatchLambdaExecutionRole \
+  --capabilities CAPABILITY_NAMED_IAM
+
+3. Wait for completion:
+
+aws cloudformation wait stack-create-complete \
+  --stack-name cloudwatch-cross-account-target
+
+4. Verify:
+
+aws iam get-role --role-name CrossAccountCloudWatchRole
+
+
+OPTION 2: Manual IAM Setup
+---------------------------
+
+1. Create the IAM role with trust policy:
+
+aws iam create-role \
+  --role-name CrossAccountCloudWatchRole \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::190460190639:role/CloudWatchLambdaExecutionRole"
+      },
+      "Action": "sts:AssumeRole"
+    }]
+  }'
+
+2. Attach CloudWatch read permissions:
+
+aws iam put-role-policy \
+  --role-name CrossAccountCloudWatchRole \
+  --policy-name CloudWatchReadAccess \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:DescribeAlarmsForMetric"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }'
+
+3. Verify the role was created:
+
+aws iam get-role --role-name CrossAccountCloudWatchRole
+
+
+EXPECTED ROLE ARN
+-----------------
+arn:aws:iam::993260645905:role/CrossAccountCloudWatchRole
+
+
+WHAT THIS DOES
+--------------
+This role allows the Lambda function running in account 190460190639 to:
+- Assume a role in account 993260645905
+- Read CloudWatch metrics and logs
+- Access CloudWatch alarms
+
+The Lambda function will use temporary credentials (valid for 1 hour)
+obtained via AWS STS AssumeRole.
+
+
+SECURITY NOTES
+--------------
+- Only account 190460190639 can assume this role
+- Only the specific Lambda execution role can assume it
+- No permanent credentials are stored
+- Access is logged in CloudTrail
+- Credentials auto-expire after 1 hour
+
+
+TESTING AFTER SETUP
+-------------------
+From the source account (190460190639), run:
+
+aws lambda invoke \
+  --function-name CloudWatchCrossAccountFetcher \
+  --payload file://test_event.json \
+  response.json
+
+cat response.json
+
+
+TROUBLESHOOTING
+---------------
+
+Error: "Access Denied"
+→ Verify the role name is exactly: CrossAccountCloudWatchRole
+→ Check the trust policy allows arn:aws:iam::190460190639:role/CloudWatchLambdaExecutionRole
+
+Error: "Role not found"
+→ Ensure the role was created in the correct account (993260645905)
+→ Role names are case-sensitive
+
+Error: "Invalid credentials"
+→ Verify CloudWatch permissions are attached to the role
+→ Check that the policy document is valid JSON
+
+
+CLEANUP (if needed)
+-------------------
+To remove the target account setup:
+
+# CloudFormation:
+aws cloudformation delete-stack --stack-name cloudwatch-cross-account-target
+
+# Manual:
+aws iam delete-role-policy --role-name CrossAccountCloudWatchRole --policy-name CloudWatchReadAccess
+aws iam delete-role --role-name CrossAccountCloudWatchRole
+
+

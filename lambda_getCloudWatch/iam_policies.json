@@ -1,0 +1,76 @@
+{
+  "comment": "IAM policies needed for cross-account CloudWatch access",
+  
+  "target_account": {
+    "description": "Create this role in the TARGET account (where CloudWatch data lives)",
+    "role_name": "CrossAccountCloudWatchRole",
+    "trust_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::<SOURCE_ACCOUNT_ID>:root"
+          },
+          "Action": "sts:AssumeRole",
+          "Condition": {
+            "StringEquals": {
+              "sts:ExternalId": "optional-external-id-for-security"
+            }
+          }
+        }
+      ]
+    },
+    "permissions_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "cloudwatch:GetMetricStatistics",
+            "cloudwatch:ListMetrics",
+            "cloudwatch:GetMetricData",
+            "cloudwatch:DescribeAlarms",
+            "cloudwatch:DescribeAlarmsForMetric"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "logs:DescribeLogGroups",
+            "logs:DescribeLogStreams",
+            "logs:GetLogEvents",
+            "logs:FilterLogEvents"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  
+  "source_account": {
+    "description": "Attach this policy to your Lambda execution role in the SOURCE account (where Lambda runs)",
+    "lambda_execution_role_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "sts:AssumeRole",
+          "Resource": "arn:aws:iam::<TARGET_ACCOUNT_ID>:role/CrossAccountCloudWatchRole"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          "Resource": "arn:aws:logs:*:*:*"
+        }
+      ]
+    }
+  }
+}
+
+

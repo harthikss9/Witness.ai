@@ -1,0 +1,8 @@
+{
+  "namespace": "AWS/EC2",
+  "metric_name": "CPUUtilization",
+  "statistics": ["Average", "Maximum", "Minimum"],
+  "period": 300,
+  "hours_back": 1,
+  "dimensions": []
+}

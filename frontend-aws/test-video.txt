@@ -1,0 +1,2 @@
+This is a test file to simulate video upload
+Created for CloudWatch polling demonstration

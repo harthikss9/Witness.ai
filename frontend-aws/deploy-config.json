@@ -1,0 +1,18 @@
+{
+  "aws": {
+    "region": "us-west-1",
+    "bucketName": "collision-analysis-bucket-1761434570",
+    "distributionId": "YOUR_DISTRIBUTION_ID",
+    "stackName": "collision-analysis-stack"
+  },
+  "build": {
+    "outputDir": "out",
+    "cacheControl": "public, max-age=31536000"
+  },
+  "cloudfront": {
+    "priceClass": "PriceClass_100",
+    "compress": true,
+    "defaultTTL": 86400,
+    "maxTTL": 31536000
+  }
+}
